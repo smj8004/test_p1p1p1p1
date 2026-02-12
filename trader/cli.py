@@ -1202,6 +1202,46 @@ def daemon(
     daemon_instance.run()
 
 
+@app.command("compare")
+def compare_strategies(
+    symbol: str = typer.Option("BTC/USDT", help="Market symbol"),
+    timeframe: str = typer.Option("1m", help="Candle timeframe"),
+    initial_equity: float = typer.Option(10_000.0, help="Starting equity per strategy (USDT)"),
+    testnet: bool = typer.Option(True, help="Use Binance testnet"),
+    data_dir: str = typer.Option("data/multi_strategy", help="Directory for results"),
+    no_prevent_sleep: bool = typer.Option(False, "--no-prevent-sleep", help="Don't prevent system sleep"),
+    leaderboard_interval: int = typer.Option(10, help="Leaderboard display interval (minutes)"),
+    save_interval: int = typer.Option(5, help="Data save interval (minutes)"),
+) -> None:
+    """
+    Run multiple strategies simultaneously for comparison.
+
+    Tests a matrix of strategy configurations (EMA, RSI, MACD, Bollinger)
+    with different parameters to find the best performer.
+
+    Results are saved to data_dir with:
+    - leaderboard.csv: Ranked strategy performance
+    - strategies/: Detailed results per strategy
+    - market_data.parquet: Collected price data
+    """
+    from trader.multi_strategy_daemon import MultiStrategyConfig, MultiStrategyDaemon
+    from pathlib import Path
+
+    config = MultiStrategyConfig(
+        symbol=symbol,
+        timeframe=timeframe,
+        initial_equity=initial_equity,
+        testnet=testnet,
+        data_dir=Path(data_dir),
+        prevent_sleep=not no_prevent_sleep,
+        leaderboard_interval_minutes=leaderboard_interval,
+        save_interval_minutes=save_interval,
+    )
+
+    daemon = MultiStrategyDaemon(config)
+    daemon.run()
+
+
 def main() -> None:
     app()
 
