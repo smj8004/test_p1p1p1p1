@@ -502,19 +502,27 @@ class MultiStrategyDaemon:
                 trades_df = pd.DataFrame(perf.trades)
                 trades_df.to_csv(strategy_dir / "trades.csv", index=False)
 
-            # Save equity curve
+            # Save equity curve (always save CSV, optionally parquet)
             if perf.equity_curve:
                 equity_df = pd.DataFrame(perf.equity_curve)
-                equity_df.to_parquet(strategy_dir / "equity_curve.parquet", index=False)
+                equity_df.to_csv(strategy_dir / "equity_curve.csv", index=False)
+                try:
+                    equity_df.to_parquet(strategy_dir / "equity_curve.parquet", index=False)
+                except (ImportError, Exception):
+                    pass  # Parquet is optional
 
             # Save summary
             summary = perf.to_dict()
             (strategy_dir / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
 
-        # Save market data
+        # Save market data (always save CSV, optionally parquet)
         if self._market_data:
             market_df = pd.DataFrame(self._market_data)
-            market_df.to_parquet(self.config.data_dir / "market_data.parquet", index=False)
+            market_df.to_csv(self.config.data_dir / "market_data.csv", index=False)
+            try:
+                market_df.to_parquet(self.config.data_dir / "market_data.parquet", index=False)
+            except (ImportError, Exception):
+                pass  # Parquet is optional
 
         # Save daemon state
         state = {
@@ -529,7 +537,11 @@ class MultiStrategyDaemon:
         }
         (self.config.data_dir / "daemon_state.json").write_text(json.dumps(state, indent=2))
 
-        logger.debug(f"Results saved to {self.config.data_dir}")
+        logger.info(f"Results saved to {self.config.data_dir}")
+        logger.info(f"  - leaderboard.csv")
+        logger.info(f"  - market_data.csv")
+        logger.info(f"  - strategies/*/trades.csv")
+        logger.info(f"  - strategies/*/equity_curve.csv")
 
     def run(self) -> None:
         """Run the multi-strategy daemon."""
