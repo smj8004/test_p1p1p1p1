@@ -1163,6 +1163,45 @@ def status(
         storage.close()
 
 
+@app.command()
+def daemon(
+    symbols: str = typer.Option("BTC/USDT", help="Comma-separated symbols, e.g. BTC/USDT,ETH/USDT"),
+    strategy: str = typer.Option("ema_cross", help="Strategy: ema_cross, rsi, macd, bollinger"),
+    timeframe: str = typer.Option("1m", help="Candle timeframe"),
+    initial_equity: float = typer.Option(10_000.0, help="Starting paper equity (USDT)"),
+    testnet: bool = typer.Option(True, help="Use Binance testnet"),
+    data_dir: str = typer.Option("data", help="Directory for data storage"),
+    no_prevent_sleep: bool = typer.Option(False, "--no-prevent-sleep", help="Don't prevent system sleep"),
+) -> None:
+    """
+    Run 24/7 paper trading daemon.
+
+    Continuously monitors real-time data and executes paper trades.
+    Prevents system sleep and accumulates market data.
+    Press Ctrl+C to stop gracefully.
+    """
+    from trader.daemon import DaemonConfig, TradingDaemon
+    from pathlib import Path
+
+    if strategy not in AVAILABLE_STRATEGIES:
+        raise typer.BadParameter(f"Unknown strategy: {strategy}. Available: {', '.join(AVAILABLE_STRATEGIES)}")
+
+    parsed_symbols = _parse_symbols(symbols)
+
+    config = DaemonConfig(
+        symbols=parsed_symbols,
+        strategy=strategy,
+        timeframe=timeframe,
+        initial_equity=initial_equity,
+        testnet=testnet,
+        data_dir=Path(data_dir),
+        prevent_sleep=not no_prevent_sleep,
+    )
+
+    daemon_instance = TradingDaemon(config)
+    daemon_instance.run()
+
+
 def main() -> None:
     app()
 
