@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.env
+*.sqlite
+*.db
+
+.idea/
+.vscode/
+
+# Sensitive files
+key_for_binance.py
+logs/
+previous/
+out/
