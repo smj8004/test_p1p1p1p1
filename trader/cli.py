@@ -1283,6 +1283,110 @@ def backtest_compare(
     backtester.run()
 
 
+@app.command("download-data")
+def download_data(
+    symbols: str = typer.Option("BTC/USDT,ETH/USDT,XRP/USDT", help="Comma-separated symbols"),
+    timeframe: str = typer.Option("1m", help="Candle timeframe"),
+    days: int = typer.Option(1095, help="Number of days to download (default: 3 years)"),
+    cache_dir: str = typer.Option("data/historical", help="Directory to save data"),
+) -> None:
+    """
+    Download and cache historical data from Binance.
+
+    Downloads historical kline data for multiple symbols and saves to CSV cache.
+    This data is used by backtest-compare for fast offline backtesting.
+
+    Examples:
+        # Download 3 years of BTC, ETH, XRP data (default)
+        python main.py download-data
+
+        # Download 1 year of specific symbols
+        python main.py download-data --symbols BTC/USDT,ETH/USDT --days 365
+
+        # Download 5 years of BTC only
+        python main.py download-data --symbols BTC/USDT --days 1825
+    """
+    from trader.data.historical import download_multiple_symbols
+
+    parsed_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+
+    if not parsed_symbols:
+        raise typer.BadParameter("At least one symbol is required")
+
+    download_multiple_symbols(
+        symbols=parsed_symbols,
+        timeframe=timeframe,
+        days=days,
+        cache_dir=cache_dir,
+    )
+
+
+@app.command("download-futures")
+def download_futures(
+    symbols: str = typer.Option("BTCUSDT,ETHUSDT", help="Comma-separated futures symbols (no slash)"),
+    days: int = typer.Option(365, help="Number of days to download"),
+    base_dir: str = typer.Option("data/futures", help="Output directory"),
+    include_trades: bool = typer.Option(False, "--include-trades", help="Include aggTrades (very heavy)"),
+    skip_ohlcv: bool = typer.Option(False, "--skip-ohlcv", help="Skip OHLCV download"),
+    skip_funding: bool = typer.Option(False, "--skip-funding", help="Skip funding rate"),
+    skip_mark: bool = typer.Option(False, "--skip-mark", help="Skip mark price"),
+    skip_index: bool = typer.Option(False, "--skip-index", help="Skip index price"),
+    skip_oi: bool = typer.Option(False, "--skip-oi", help="Skip open interest"),
+    skip_ratio: bool = typer.Option(False, "--skip-ratio", help="Skip long/short ratio"),
+) -> None:
+    """
+    Download USDT-M Futures data from Binance FAPI.
+
+    Downloads comprehensive futures data for realistic backtesting:
+    - OHLCV (1m klines, auto-resampled to 5m/15m/1h/4h)
+    - Funding Rate (8h intervals)
+    - Mark Price Klines (for liquidation simulation)
+    - Index Price Klines (weighted spot average)
+    - Open Interest History (market sentiment)
+    - Long/Short Ratio (positioning data)
+    - Aggregated Trades (optional, for slippage modeling)
+
+    Data is saved in 3-tier structure:
+    - raw/: Original API responses (CSV)
+    - clean/: Validated & processed (Parquet)
+    - meta/: Exchange info & manifests (JSON)
+
+    Examples:
+        # Download 1 year of BTC and ETH futures data
+        python main.py download-futures --days 365
+
+        # Download 6 months with aggregated trades
+        python main.py download-futures --days 180 --include-trades
+
+        # Quick download (OHLCV + funding only)
+        python main.py download-futures --skip-mark --skip-index --skip-oi --skip-ratio
+    """
+    from pathlib import Path
+    from trader.data.futures_data import FuturesDataConfig, FuturesDataDownloader
+
+    parsed_symbols = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+
+    if not parsed_symbols:
+        raise typer.BadParameter("At least one symbol is required")
+
+    config = FuturesDataConfig(
+        symbols=parsed_symbols,
+        days=days,
+        base_dir=Path(base_dir),
+        download_ohlcv=not skip_ohlcv,
+        download_funding=not skip_funding,
+        download_mark_price=not skip_mark,
+        download_index_price=not skip_index,
+        download_open_interest=not skip_oi,
+        download_long_short_ratio=not skip_ratio,
+        download_exchange_info=True,
+        download_agg_trades=include_trades,
+    )
+
+    downloader = FuturesDataDownloader(config)
+    downloader.download_all()
+
+
 def main() -> None:
     app()
 

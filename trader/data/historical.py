@@ -217,7 +217,11 @@ class HistoricalDataDownloader:
         Returns:
             DataFrame with all cached data
         """
+        now = datetime.now(timezone.utc)
+        requested_start = now - timedelta(days=days)
         existing_df = None
+        need_old_data = False
+        need_new_data = False
 
         # Load existing cache
         if self.cache_file.exists() and update_existing:
@@ -226,25 +230,47 @@ class HistoricalDataDownloader:
             existing_df["timestamp"] = pd.to_datetime(existing_df["timestamp"], utc=True)
             logger.info(f"  Existing data: {len(existing_df):,} candles")
 
-            # Calculate what we need to download
-            last_timestamp = existing_df["timestamp"].max()
-            now = datetime.now(timezone.utc)
-            days_to_download = (now - last_timestamp).days + 1
+            cache_start = existing_df["timestamp"].min()
+            cache_end = existing_df["timestamp"].max()
+            logger.info(f"  Cache range: {cache_start} to {cache_end}")
 
-            if days_to_download <= 0:
-                logger.info("  Cache is up to date!")
-                return existing_df
+            # Check if we need older data (user requested more history than cache has)
+            if requested_start < cache_start:
+                need_old_data = True
+                old_days = (cache_start - requested_start).days + 1
+                logger.info(f"  Need {old_days} days of older data...")
 
-            logger.info(f"  Downloading {days_to_download} days of new data...")
-            new_df = self.download(days=days_to_download)
+            # Check if we need newer data
+            days_since_cache = (now - cache_end).days
+            if days_since_cache > 0:
+                need_new_data = True
+                logger.info(f"  Need {days_since_cache} days of new data...")
 
-            if not new_df.empty:
-                # Merge with existing data
-                df = pd.concat([existing_df, new_df], ignore_index=True)
-                df = df.drop_duplicates(subset=["timestamp"])
-                df = df.sort_values("timestamp").reset_index(drop=True)
-            else:
-                df = existing_df
+            if not need_old_data and not need_new_data:
+                logger.info("  Cache has sufficient data!")
+                # Filter to requested range
+                df = existing_df[existing_df["timestamp"] >= requested_start].copy()
+                return df.reset_index(drop=True)
+
+            dfs_to_merge = [existing_df]
+
+            # Download older data if needed
+            if need_old_data:
+                old_end = cache_start - timedelta(minutes=1)
+                old_df = self.download(days=old_days, end_date=old_end)
+                if not old_df.empty:
+                    dfs_to_merge.insert(0, old_df)
+
+            # Download newer data if needed
+            if need_new_data:
+                new_df = self.download(days=days_since_cache + 1)
+                if not new_df.empty:
+                    dfs_to_merge.append(new_df)
+
+            # Merge all data
+            df = pd.concat(dfs_to_merge, ignore_index=True)
+            df = df.drop_duplicates(subset=["timestamp"])
+            df = df.sort_values("timestamp").reset_index(drop=True)
         else:
             # Download all requested data
             df = self.download(days=days)
@@ -304,3 +330,64 @@ def download_historical_data(
     )
 
     return downloader.download_and_cache(days=days)
+
+
+def download_multiple_symbols(
+    symbols: list[str],
+    timeframe: str = "1m",
+    days: int = 1095,  # 3 years
+    cache_dir: str = "data/historical",
+) -> dict[str, pd.DataFrame]:
+    """
+    Download historical data for multiple symbols.
+
+    Args:
+        symbols: List of trading pairs (e.g., ["BTC/USDT", "ETH/USDT"])
+        timeframe: Candlestick timeframe
+        days: Number of days to download
+        cache_dir: Directory to cache data
+
+    Returns:
+        Dict of symbol -> DataFrame
+    """
+    from trader.logging import setup_logging
+    setup_logging(level="INFO")
+
+    results = {}
+    total = len(symbols)
+
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info(f"Downloading {days} days of {timeframe} data for {total} symbols")
+    logger.info("=" * 60)
+
+    for i, symbol in enumerate(symbols, 1):
+        logger.info("")
+        logger.info(f"[{i}/{total}] {symbol}")
+        logger.info("-" * 40)
+
+        try:
+            df = download_historical_data(
+                symbol=symbol,
+                timeframe=timeframe,
+                days=days,
+                cache_dir=cache_dir,
+            )
+            results[symbol] = df
+            logger.info(f"  Done: {len(df):,} candles")
+        except Exception as e:
+            logger.error(f"  Failed: {e}")
+            results[symbol] = pd.DataFrame()
+
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("Download Summary")
+    logger.info("=" * 60)
+    for symbol, df in results.items():
+        if not df.empty:
+            logger.info(f"  {symbol}: {len(df):,} candles ({df['timestamp'].min().date()} to {df['timestamp'].max().date()})")
+        else:
+            logger.info(f"  {symbol}: FAILED")
+    logger.info("=" * 60)
+
+    return results
