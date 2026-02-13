@@ -11,6 +11,7 @@ This is the most realistic backtesting approach:
 
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -140,6 +141,10 @@ class MTFBacktestConfig:
     take_profit_pct: float = 4.0  # 4% take profit (2:1 RR)
     use_trailing_stop: bool = False
     trailing_stop_pct: float = 1.5
+
+    # Trade management
+    min_holding_bars: int = 60  # Minimum 60 bars (1 hour on 1m) before signal exit
+    cooldown_bars: int = 15  # Wait 15 bars after exit before new entry
 
 
 @dataclass
@@ -992,6 +997,10 @@ class MTFBacktester:
         # Pending signal (for next-bar execution)
         self.pending_signal: str | None = None
 
+        # Trade management
+        self.bars_in_position: int = 0
+        self.cooldown_remaining: int = 0
+
         # Components
         self.bar_builder = MTFBarBuilder()
         self.indicator_calc = MTFIndicatorCalculator()
@@ -1131,6 +1140,8 @@ class MTFBacktester:
         self.take_profit_price = None
         self.trailing_stop_price = None
         self.current_trade_funding = 0.0
+        self.bars_in_position = 0
+        self.cooldown_remaining = self.config.cooldown_bars
 
     def _check_stop_loss(self, bar: MTFBar) -> bool:
         """Check if stop loss hit."""
@@ -1209,6 +1220,8 @@ class MTFBacktester:
         self.trades = []
         self.equity_curve = []
         self.pending_signal = None
+        self.bars_in_position = 0
+        self.cooldown_remaining = 0
 
         # Progress tracking
         last_progress = 0
@@ -1286,6 +1299,12 @@ class MTFBacktester:
                     self.funding_paid += funding
                     self.current_trade_funding += funding
 
+            # Update trade management counters
+            if self.position != "flat":
+                self.bars_in_position += 1
+            if self.cooldown_remaining > 0:
+                self.cooldown_remaining -= 1
+
             # STEP 4: Generate signal at bar CLOSE (for next bar)
             signal = self.strategy.on_bar(
                 mtf_bars,
@@ -1294,8 +1313,16 @@ class MTFBacktester:
                 self.entry_price
             )
 
+            # Apply trade management rules
             if signal in ["long", "short", "exit"]:
-                self.pending_signal = signal
+                # For exits: check minimum holding period
+                if signal == "exit":
+                    if self.bars_in_position >= self.config.min_holding_bars:
+                        self.pending_signal = signal
+                # For entries: check cooldown
+                elif signal in ["long", "short"]:
+                    if self.cooldown_remaining == 0:
+                        self.pending_signal = signal
 
             # Track equity
             unrealized_pnl = 0.0
@@ -1440,8 +1467,11 @@ def run_mtf_backtest(
     from trader.logging import setup_logging
     setup_logging(level="INFO")
 
-    # Load data
-    data_path = Path(data_dir) / "clean" / f"{symbol}_1m.parquet"
+    # Load data - check both path formats
+    data_path = Path(data_dir) / "clean" / symbol / "ohlcv_1m.parquet"
+    if not data_path.exists():
+        # Try alternative path format
+        data_path = Path(data_dir) / "clean" / f"{symbol}_1m.parquet"
     if not data_path.exists():
         logger.error(f"Data not found: {data_path}")
         logger.error("Please run: python main.py download-futures first")
@@ -1449,6 +1479,10 @@ def run_mtf_backtest(
 
     logger.info(f"Loading data: {data_path}")
     df = pd.read_parquet(data_path)
+
+    # Normalize column names
+    if "open_time" in df.columns and "timestamp" not in df.columns:
+        df = df.rename(columns={"open_time": "timestamp"})
 
     # Filter to requested days
     if days < 1095:  # Less than 3 years
@@ -1458,25 +1492,26 @@ def run_mtf_backtest(
     logger.info(f"Data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
     logger.info(f"Total bars: {len(df):,}")
 
-    # Load funding rates
-    funding_path = Path(data_dir) / "clean" / f"{symbol}_funding_rate.parquet"
+    # Load funding rates - check both path formats
+    funding_path = Path(data_dir) / "clean" / symbol / "funding_rate.parquet"
+    if not funding_path.exists():
+        funding_path = Path(data_dir) / "clean" / f"{symbol}_funding_rate.parquet"
     funding_df = None
     if funding_path.exists():
         funding_df = pd.read_parquet(funding_path)
         logger.info(f"Loaded funding rates: {len(funding_df):,} records")
 
-    # Define strategies
+    # Define strategies - focus on fewer, better tuned strategies
     strategies = [
-        TrendFollowMTF(),
+        # Conservative trend following (fewer trades, higher quality)
         TrendFollowMTF(trend_adx_threshold=25.0, pullback_rsi_low=35.0, pullback_rsi_high=65.0),
-        MomentumBreakoutMTF(),
+        TrendFollowMTF(trend_adx_threshold=30.0, pullback_rsi_low=30.0, pullback_rsi_high=70.0),
+        # Breakout with strict volume confirmation
         MomentumBreakoutMTF(bb_squeeze_threshold=0.015, volume_multiplier=2.0),
-        MACDDivergenceMTF(),
+        # Divergence with extreme RSI only
         MACDDivergenceMTF(divergence_bars=15, rsi_oversold=25.0, rsi_overbought=75.0),
-        RSIMeanReversionMTF(),
-        RSIMeanReversionMTF(h1_rsi_oversold=20.0, h1_rsi_overbought=80.0, require_trend=False),
-        AdaptiveTrendMTF(),
-        AdaptiveTrendMTF(adx_trending_threshold=30.0, adx_ranging_threshold=15.0),
+        # Mean reversion at extremes only
+        RSIMeanReversionMTF(h1_rsi_oversold=20.0, h1_rsi_overbought=80.0, require_trend=True),
     ]
 
     # Run backtests
@@ -1496,19 +1531,22 @@ def run_mtf_backtest(
             logger.info(f"[{current_test}/{total_tests}] {strategy.name} @ {leverage}x leverage")
             logger.info("-" * 50)
 
+            # Adjust SL/TP based on leverage (higher leverage = tighter stops)
+            base_sl = 3.0  # 3% base stop loss
+            base_tp = 6.0  # 6% base take profit (2:1 RR)
+
             config = MTFBacktestConfig(
                 leverage=leverage,
                 use_stop_loss=True,
-                stop_loss_pct=2.0,
+                stop_loss_pct=base_sl,
                 use_take_profit=True,
-                take_profit_pct=4.0,
+                take_profit_pct=base_tp,
+                use_trailing_stop=True,
+                trailing_stop_pct=2.0,
             )
 
             # Create fresh strategy instance for each test
-            strategy_copy = type(strategy)(**{
-                k: v for k, v in strategy.__dict__.items()
-                if not k.startswith('_')
-            }) if hasattr(strategy, '__dict__') else strategy
+            strategy_copy = copy.deepcopy(strategy)
 
             backtester = MTFBacktester(
                 config=config,
