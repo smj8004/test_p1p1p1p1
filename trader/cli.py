@@ -1363,6 +1363,51 @@ def futures_backtest(
     )
 
 
+@app.command("mtf-backtest")
+def mtf_backtest(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    days: int = typer.Option(365, help="Days of data to backtest"),
+    data_dir: str = typer.Option("data/futures", help="Data directory"),
+    output_dir: str = typer.Option("data/futures/mtf_results", help="Output directory"),
+    leverages: str = typer.Option("1,3,5,10", help="Comma-separated leverage values"),
+) -> None:
+    """
+    Run Multi-Timeframe (MTF) futures backtesting.
+
+    This is the MOST REALISTIC backtesting approach:
+    - Uses 1m as base, calculates 5m/15m/1h/4h in real-time
+    - Multiple timeframe confirmation for entries/exits
+    - Higher timeframe for trend, lower for entry timing
+
+    MTF Strategies included:
+    - TrendFollow_MTF: 4h trend + 1h pullback + 15m entry
+    - MomentumBreakout_MTF: BB squeeze + volume breakout
+    - MACDDivergence_MTF: 1h divergence + 15m confirmation
+    - RSIMeanReversion_MTF: Extreme RSI + mean reversion
+    - AdaptiveTrend_MTF: ADX-based mode switching
+
+    Features:
+    - Next-bar execution (no lookahead bias)
+    - Stop loss / Take profit / Trailing stop
+    - Funding rate costs
+    - Liquidation simulation
+
+    Example:
+        python main.py mtf-backtest --days 365 --leverages 3,5,10
+    """
+    from trader.mtf_backtest import run_mtf_backtest
+
+    leverage_list = [int(x.strip()) for x in leverages.split(",") if x.strip()]
+
+    run_mtf_backtest(
+        symbol=symbol,
+        days=days,
+        leverages=leverage_list,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
+
+
 @app.command("download-futures")
 def download_futures(
     symbols: str = typer.Option("BTCUSDT,ETHUSDT", help="Comma-separated futures symbols (no slash)"),
