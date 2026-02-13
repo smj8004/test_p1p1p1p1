@@ -1408,6 +1408,48 @@ def mtf_backtest(
     )
 
 
+@app.command("mtf-optimize")
+def mtf_optimize(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    days: int = typer.Option(90, help="Days of data to optimize on"),
+    data_dir: str = typer.Option("data/futures", help="Data directory"),
+    output_dir: str = typer.Option("data/futures/optimization", help="Output directory"),
+    leverages: str = typer.Option("3,5", help="Comma-separated leverage values"),
+) -> None:
+    """
+    Optimize MTF strategies with grid search.
+
+    Features:
+    1. Grid search over strategy parameters
+    2. Market regime detection (trending/ranging/volatile)
+    3. Best strategy selection per regime
+    4. Risk parameter optimization (SL/TP/holding period)
+
+    Tests ALL combinations of:
+    - Strategy parameters (ADX thresholds, RSI levels, etc.)
+    - Risk parameters (stop loss, take profit, min holding)
+    - Leverage levels
+
+    Output:
+    - optimization_*.csv: All results ranked by Sharpe ratio
+    - regime_best_*.json: Best strategy for each market regime
+
+    Example:
+        python main.py mtf-optimize --days 90 --leverages 3,5
+    """
+    from trader.mtf_optimizer import run_mtf_optimization
+
+    leverage_list = [int(x.strip()) for x in leverages.split(",") if x.strip()]
+
+    run_mtf_optimization(
+        symbol=symbol,
+        days=days,
+        leverages=leverage_list,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
+
+
 @app.command("download-futures")
 def download_futures(
     symbols: str = typer.Option("BTCUSDT,ETHUSDT", help="Comma-separated futures symbols (no slash)"),
