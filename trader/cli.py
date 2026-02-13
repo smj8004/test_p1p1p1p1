@@ -1408,6 +1408,80 @@ def mtf_backtest(
     )
 
 
+@app.command("mtf-ml")
+def mtf_ml(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    days: int = typer.Option(90, help="Days of data"),
+    strategy: str = typer.Option("TrendFollow", help="Strategy: TrendFollow, MACDDivergence, MomentumBreakout, RSIMeanReversion"),
+    trials: int = typer.Option(50, help="Number of optimization trials"),
+    leverage: int = typer.Option(3, help="Leverage"),
+    data_dir: str = typer.Option("data/futures", help="Data directory"),
+    output_dir: str = typer.Option("data/futures/ml_optimization", help="Output directory"),
+) -> None:
+    """
+    Machine Learning optimization for MTF strategies.
+
+    Uses Bayesian optimization to find optimal parameters:
+    - Explores parameter space intelligently
+    - Balances exploration vs exploitation
+    - Composite objective: Sharpe + WinRate - Drawdown
+
+    Example:
+        python main.py mtf-ml --strategy TrendFollow --trials 50
+    """
+    from trader.mtf_advanced import run_ml_optimization
+
+    run_ml_optimization(
+        symbol=symbol,
+        days=days,
+        strategy_name=strategy,
+        n_trials=trials,
+        leverage=leverage,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
+
+
+@app.command("mtf-walkforward")
+def mtf_walkforward(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    strategy: str = typer.Option("TrendFollow", help="Strategy name"),
+    train_days: int = typer.Option(60, help="Training window days"),
+    test_days: int = typer.Option(30, help="Testing window days"),
+    trials: int = typer.Option(30, help="Optimization trials per window"),
+    leverage: int = typer.Option(3, help="Leverage"),
+    data_dir: str = typer.Option("data/futures", help="Data directory"),
+    output_dir: str = typer.Option("data/futures/walk_forward", help="Output directory"),
+) -> None:
+    """
+    Walk-forward validation to prevent overfitting.
+
+    Process:
+    1. Split data into rolling train/test windows
+    2. Optimize on train, validate on test (out-of-sample)
+    3. Roll forward and repeat
+    4. Aggregate results across all windows
+
+    This is the GOLD STANDARD for validating trading strategies.
+    If a strategy works in walk-forward, it's more likely to work live.
+
+    Example:
+        python main.py mtf-walkforward --strategy TrendFollow --train-days 60 --test-days 30
+    """
+    from trader.mtf_advanced import run_walk_forward
+
+    run_walk_forward(
+        symbol=symbol,
+        strategy_name=strategy,
+        train_days=train_days,
+        test_days=test_days,
+        n_trials=trials,
+        leverage=leverage,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
+
+
 @app.command("mtf-optimize")
 def mtf_optimize(
     symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
