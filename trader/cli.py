@@ -1242,6 +1242,47 @@ def compare_strategies(
     daemon.run()
 
 
+@app.command("backtest-compare")
+def backtest_compare(
+    symbol: str = typer.Option("BTC/USDT", help="Market symbol"),
+    timeframe: str = typer.Option("1m", help="Candle timeframe"),
+    days: int = typer.Option(365, help="Number of days of historical data"),
+    initial_equity: float = typer.Option(10_000.0, help="Starting equity per strategy (USDT)"),
+    data_dir: str = typer.Option("data/backtest", help="Directory for results"),
+) -> None:
+    """
+    Backtest multiple strategies on historical data.
+
+    Downloads historical data from Binance and tests all 44 strategy
+    configurations to find the best performer. Much faster than real-time
+    testing - can test years of data in minutes.
+
+    Examples:
+        # Test 1 year of data
+        python main.py backtest-compare --days 365
+
+        # Test 3 years of ETH data
+        python main.py backtest-compare --symbol ETH/USDT --days 1095
+
+    Results are saved to data_dir with:
+    - leaderboard.csv: Ranked strategy performance
+    - strategies/: Detailed results per strategy
+    """
+    from trader.backtest_compare import BacktestConfig, MultiStrategyBacktester
+    from pathlib import Path
+
+    config = BacktestConfig(
+        symbol=symbol,
+        timeframe=timeframe,
+        days=days,
+        initial_equity=initial_equity,
+        data_dir=Path(data_dir),
+    )
+
+    backtester = MultiStrategyBacktester(config)
+    backtester.run()
+
+
 def main() -> None:
     app()
 
