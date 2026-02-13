@@ -68,10 +68,13 @@ class FuturesDataConfig:
     download_long_short_ratio: bool = True
     download_agg_trades: bool = False  # Heavy, optional
 
-    # Rate limiting
-    request_delay: float = 0.05  # 50ms between requests
-    retry_delay: float = 5.0
-    max_retries: int = 3
+    # Force re-download even if cache exists
+    force_download: bool = False
+
+    # Rate limiting (Binance limit: 1200 req/min, but be conservative)
+    request_delay: float = 0.25  # 250ms between requests (safe)
+    retry_delay: float = 10.0   # Wait longer on retry
+    max_retries: int = 5
 
 
 class FuturesDataDownloader:
@@ -131,23 +134,33 @@ class FuturesDataDownloader:
         endpoint: str,
         params: dict[str, Any] | None = None,
     ) -> Any:
-        """Make API request with retry logic."""
+        """Make API request with retry logic and adaptive backoff."""
         url = f"{self.base_url}{endpoint}"
 
         for attempt in range(self.config.max_retries):
             try:
                 response = self.session.get(url, params=params, timeout=30)
+
+                # Handle rate limiting (429)
+                if response.status_code == 429:
+                    wait_time = self.config.retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Rate limited (429). Waiting {wait_time:.0f}s...")
+                    time.sleep(wait_time)
+                    continue
+
                 response.raise_for_status()
 
-                # Rate limiting
+                # Rate limiting between requests
                 time.sleep(self.config.request_delay)
 
                 return response.json()
 
             except requests.exceptions.RequestException as e:
+                wait_time = self.config.retry_delay * (2 ** attempt)
                 logger.warning(f"Request failed (attempt {attempt + 1}): {e}")
                 if attempt < self.config.max_retries - 1:
-                    time.sleep(self.config.retry_delay)
+                    logger.info(f"Retrying in {wait_time:.0f}s...")
+                    time.sleep(wait_time)
                 else:
                     raise
 
@@ -288,8 +301,12 @@ class FuturesDataDownloader:
 
         df = pd.DataFrame(all_funding)
         df["fundingTime"] = pd.to_datetime(df["fundingTime"], unit="ms", utc=True)
-        df["fundingRate"] = df["fundingRate"].astype(float)
-        df["markPrice"] = df["markPrice"].astype(float) if "markPrice" in df.columns else None
+        df["fundingRate"] = pd.to_numeric(df["fundingRate"], errors="coerce")
+
+        # Handle markPrice which may be empty string for older records
+        if "markPrice" in df.columns:
+            df["markPrice"] = df["markPrice"].replace("", pd.NA)
+            df["markPrice"] = pd.to_numeric(df["markPrice"], errors="coerce")
 
         df = df.drop_duplicates(subset=["fundingTime"])
         df = df.sort_values("fundingTime").reset_index(drop=True)
@@ -532,6 +549,7 @@ class FuturesDataDownloader:
 
         all_oi = []
         current_start = start_ms
+        request_count = 0
 
         while current_start < end_ms:
             try:
@@ -550,6 +568,10 @@ class FuturesDataDownloader:
                 break
 
             all_oi.extend(oi)
+            request_count += 1
+
+            if request_count % 5 == 0:
+                logger.info(f"  Progress: {len(all_oi):,} OI records...")
 
             last_time = oi[-1]["timestamp"]
             current_start = last_time + 1
@@ -595,6 +617,7 @@ class FuturesDataDownloader:
 
         all_ratio = []
         current_start = start_ms
+        request_count = 0
 
         while current_start < end_ms:
             try:
@@ -613,6 +636,10 @@ class FuturesDataDownloader:
                 break
 
             all_ratio.extend(ratio)
+            request_count += 1
+
+            if request_count % 5 == 0:
+                logger.info(f"  Progress: {len(all_ratio):,} L/S ratio records...")
 
             last_time = ratio[-1]["timestamp"]
             current_start = last_time + 1
@@ -860,6 +887,32 @@ class FuturesDataDownloader:
 
         return None
 
+    def has_cache(self, symbol: str, data_type: str) -> bool:
+        """Check if clean cache exists for given data type."""
+        parquet_path = self.config.base_dir / "clean" / symbol / f"{data_type}.parquet"
+        csv_path = self.config.base_dir / "clean" / symbol / f"{data_type}.csv"
+        return parquet_path.exists() or csv_path.exists()
+
+    def get_cache_info(self, symbol: str, data_type: str) -> dict[str, Any] | None:
+        """Get info about cached data."""
+        df = self.load_clean(symbol, data_type)
+        if df is None:
+            return None
+
+        time_col = None
+        for col in ["open_time", "timestamp", "fundingTime"]:
+            if col in df.columns:
+                time_col = col
+                break
+
+        if time_col:
+            return {
+                "records": len(df),
+                "start": df[time_col].min(),
+                "end": df[time_col].max(),
+            }
+        return {"records": len(df)}
+
     # =========================================================================
     # Main Download Orchestrator
     # =========================================================================
@@ -915,53 +968,74 @@ class FuturesDataDownloader:
             # A. OHLCV Klines
             if self.config.download_ohlcv:
                 logger.info("")
-                df = self.download_klines(symbol, "1m")
-                if not df.empty:
-                    self.save_raw(df, symbol, "klines_1m")
+                cache_info = self.get_cache_info(symbol, "ohlcv_1m")
+                if cache_info and not self.config.force_download:
+                    logger.info(f"[{symbol}] OHLCV already cached: {cache_info['records']:,} records")
+                    logger.info(f"  Range: {cache_info.get('start')} to {cache_info.get('end')}")
+                    symbol_manifest["ohlcv"] = {"records": cache_info["records"], "cached": True}
+                else:
+                    df = self.download_klines(symbol, "1m")
+                    if not df.empty:
+                        self.save_raw(df, symbol, "klines_1m")
 
-                    # Validate and save clean
-                    validation = self.validate_data(df, "1m")
-                    if validation["valid"]:
-                        self.save_clean(df, symbol, "ohlcv_1m")
+                        # Validate and save clean
+                        validation = self.validate_data(df, "1m")
+                        if validation["valid"]:
+                            self.save_clean(df, symbol, "ohlcv_1m")
 
-                        # Resample to larger timeframes
-                        for tf in ["5m", "15m", "1h", "4h"]:
-                            resampled = self.resample_ohlcv(df, tf)
-                            self.save_clean(resampled, symbol, f"ohlcv_{tf}")
+                            # Resample to larger timeframes
+                            for tf in ["5m", "15m", "1h", "4h"]:
+                                resampled = self.resample_ohlcv(df, tf)
+                                self.save_clean(resampled, symbol, f"ohlcv_{tf}")
 
-                    symbol_manifest["ohlcv"] = {
-                        "records": len(df),
-                        "validation": validation,
-                    }
+                        symbol_manifest["ohlcv"] = {
+                            "records": len(df),
+                            "validation": validation,
+                        }
 
             # B. Funding Rate
             if self.config.download_funding:
                 logger.info("")
-                df = self.download_funding_rate(symbol)
-                if not df.empty:
-                    self.save_raw(df, symbol, "funding_rate")
-                    self.save_clean(df, symbol, "funding_rate")
-                    symbol_manifest["funding_rate"] = {"records": len(df)}
+                cache_info = self.get_cache_info(symbol, "funding_rate")
+                if cache_info and not self.config.force_download:
+                    logger.info(f"[{symbol}] Funding rate already cached: {cache_info['records']:,} records")
+                    symbol_manifest["funding_rate"] = {"records": cache_info["records"], "cached": True}
+                else:
+                    df = self.download_funding_rate(symbol)
+                    if not df.empty:
+                        self.save_raw(df, symbol, "funding_rate")
+                        self.save_clean(df, symbol, "funding_rate")
+                        symbol_manifest["funding_rate"] = {"records": len(df)}
 
             # C. Mark Price
             if self.config.download_mark_price:
                 logger.info("")
-                df = self.download_mark_price_klines(symbol, "1m")
-                if not df.empty:
-                    self.save_raw(df, symbol, "mark_price_1m")
-                    self.save_clean(df, symbol, "mark_price_1m")
-                    symbol_manifest["mark_price"] = {"records": len(df)}
+                cache_info = self.get_cache_info(symbol, "mark_price_1m")
+                if cache_info and not self.config.force_download:
+                    logger.info(f"[{symbol}] Mark price already cached: {cache_info['records']:,} records")
+                    symbol_manifest["mark_price"] = {"records": cache_info["records"], "cached": True}
+                else:
+                    df = self.download_mark_price_klines(symbol, "1m")
+                    if not df.empty:
+                        self.save_raw(df, symbol, "mark_price_1m")
+                        self.save_clean(df, symbol, "mark_price_1m")
+                        symbol_manifest["mark_price"] = {"records": len(df)}
 
             # D. Index Price
             if self.config.download_index_price:
                 logger.info("")
-                df = self.download_index_price_klines(symbol, "1m")
-                if not df.empty:
-                    self.save_raw(df, symbol, "index_price_1m")
-                    self.save_clean(df, symbol, "index_price_1m")
-                    symbol_manifest["index_price"] = {"records": len(df)}
+                cache_info = self.get_cache_info(symbol, "index_price_1m")
+                if cache_info and not self.config.force_download:
+                    logger.info(f"[{symbol}] Index price already cached: {cache_info['records']:,} records")
+                    symbol_manifest["index_price"] = {"records": cache_info["records"], "cached": True}
+                else:
+                    df = self.download_index_price_klines(symbol, "1m")
+                    if not df.empty:
+                        self.save_raw(df, symbol, "index_price_1m")
+                        self.save_clean(df, symbol, "index_price_1m")
+                        symbol_manifest["index_price"] = {"records": len(df)}
 
-            # E. Open Interest
+            # E. Open Interest (always re-download, only recent 30 days available)
             if self.config.download_open_interest:
                 logger.info("")
                 df = self.download_open_interest(symbol, "5m")
@@ -970,7 +1044,7 @@ class FuturesDataDownloader:
                     self.save_clean(df, symbol, "open_interest_5m")
                     symbol_manifest["open_interest"] = {"records": len(df)}
 
-            # F. Long/Short Ratio
+            # F. Long/Short Ratio (always re-download, only recent 30 days available)
             if self.config.download_long_short_ratio:
                 logger.info("")
                 df = self.download_long_short_ratio(symbol, "5m")
@@ -982,10 +1056,15 @@ class FuturesDataDownloader:
             # G. Aggregated Trades (optional, heavy)
             if self.config.download_agg_trades:
                 logger.info("")
-                df = self.download_agg_trades(symbol, days=1)
-                if not df.empty:
-                    self.save_raw(df, symbol, "agg_trades")
-                    symbol_manifest["agg_trades"] = {"records": len(df)}
+                cache_info = self.get_cache_info(symbol, "agg_trades")
+                if cache_info and not self.config.force_download:
+                    logger.info(f"[{symbol}] Agg trades already cached: {cache_info['records']:,} records")
+                    symbol_manifest["agg_trades"] = {"records": cache_info["records"], "cached": True}
+                else:
+                    df = self.download_agg_trades(symbol, days=1)
+                    if not df.empty:
+                        self.save_raw(df, symbol, "agg_trades")
+                        symbol_manifest["agg_trades"] = {"records": len(df)}
 
             manifest["downloads"][symbol] = symbol_manifest
 

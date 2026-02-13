@@ -1321,11 +1321,55 @@ def download_data(
     )
 
 
+@app.command("futures-backtest")
+def futures_backtest(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    data_dir: str = typer.Option("data/futures", help="Data directory"),
+    output_dir: str = typer.Option("data/futures_backtest", help="Output directory"),
+    initial_equity: float = typer.Option(10_000.0, help="Initial equity (USDT)"),
+    timeframes: str = typer.Option("5m,15m,1h,4h", help="Comma-separated timeframes"),
+    leverages: str = typer.Option("1,2,3,5,10", help="Comma-separated leverage values"),
+) -> None:
+    """
+    Run comprehensive futures backtesting.
+
+    Tests ALL combinations of:
+    - 4 strategies (EMA, RSI, MACD, Bollinger)
+    - Multiple parameters per strategy
+    - Multiple timeframes (5m, 15m, 1h, 4h)
+    - Multiple leverages (1x, 2x, 3x, 5x, 10x)
+    - Long-only vs Long+Short
+    - Multiple SL/TP combinations
+
+    Includes futures-specific features:
+    - Funding rate costs (8h intervals)
+    - Leverage and margin simulation
+    - Liquidation simulation
+
+    Results saved to output_dir/results.csv
+
+    Example:
+        python main.py futures-backtest --timeframes 1h,4h --leverages 1,3,5
+    """
+    from trader.futures_backtest import run_futures_backtest
+
+    run_futures_backtest(
+        symbol=symbol,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        initial_equity=initial_equity,
+        timeframes=timeframes,
+        leverages=leverages,
+    )
+
+
 @app.command("download-futures")
 def download_futures(
     symbols: str = typer.Option("BTCUSDT,ETHUSDT", help="Comma-separated futures symbols (no slash)"),
     days: int = typer.Option(365, help="Number of days to download"),
     base_dir: str = typer.Option("data/futures", help="Output directory"),
+    delay: float = typer.Option(0.25, help="Delay between requests in seconds (increase if rate limited)"),
+    force: bool = typer.Option(False, "--force", help="Force re-download even if cache exists"),
     include_trades: bool = typer.Option(False, "--include-trades", help="Include aggTrades (very heavy)"),
     skip_ohlcv: bool = typer.Option(False, "--skip-ohlcv", help="Skip OHLCV download"),
     skip_funding: bool = typer.Option(False, "--skip-funding", help="Skip funding rate"),
@@ -1373,6 +1417,8 @@ def download_futures(
         symbols=parsed_symbols,
         days=days,
         base_dir=Path(base_dir),
+        request_delay=delay,
+        force_download=force,
         download_ohlcv=not skip_ohlcv,
         download_funding=not skip_funding,
         download_mark_price=not skip_mark,
