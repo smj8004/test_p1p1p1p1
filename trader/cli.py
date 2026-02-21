@@ -1594,6 +1594,147 @@ def download_futures(
     downloader.download_all()
 
 
+@app.command("funding-download")
+def funding_download(
+    symbols: str = typer.Option(
+        "BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,DOGEUSDT,ADAUSDT,AVAXUSDT,DOTUSDT,LINKUSDT",
+        help="Comma-separated futures symbols"
+    ),
+    force_full: bool = typer.Option(False, "--force", help="Force full 30-day download (ignore existing)"),
+) -> None:
+    """
+    Download and accumulate Funding Rate data from Binance.
+
+    Funding rates are settled every 8 hours (00:00, 08:00, 16:00 UTC).
+    Binance API only provides last 30 days, so run regularly to accumulate history.
+
+    Data is saved to data/futures/funding/{SYMBOL}_funding.parquet
+    Each run merges new data with existing, avoiding duplicates.
+
+    Examples:
+        # Download default 10 symbols
+        python main.py funding-download
+
+        # Download specific symbols
+        python main.py funding-download --symbols BTCUSDT,ETHUSDT
+
+        # Force full re-download
+        python main.py funding-download --force
+    """
+    from trader.funding_rate import run_download
+
+    parsed_symbols = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    run_download(symbols=parsed_symbols, force_full=force_full)
+
+
+@app.command("funding-analyze")
+def funding_analyze(
+    symbols: str = typer.Option(
+        "BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,DOGEUSDT,ADAUSDT,AVAXUSDT,DOTUSDT,LINKUSDT",
+        help="Comma-separated futures symbols"
+    ),
+) -> None:
+    """
+    Analyze accumulated Funding Rate data.
+
+    Shows:
+    - Mean funding rate (overall, 7-day, 30-day)
+    - Annual return estimate (rate * 3 * 365)
+    - Positive rate ratio (stability indicator)
+    - Recommended symbols for arbitrage
+
+    A positive funding rate means LONG pays SHORT.
+    For arbitrage (spot long + futures short), you want positive rates.
+
+    Examples:
+        python main.py funding-analyze
+        python main.py funding-analyze --symbols BTCUSDT,ETHUSDT
+    """
+    from trader.funding_rate import run_analyze
+
+    parsed_symbols = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    run_analyze(symbols=parsed_symbols)
+
+
+@app.command("funding-backtest")
+def funding_backtest(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    initial_capital: float = typer.Option(10000.0, help="Initial capital (USDT)"),
+) -> None:
+    """
+    Backtest Funding Rate arbitrage strategy.
+
+    Strategy:
+    1. BUY spot BTC + SHORT futures BTC (equal size)
+    2. Price movement is hedged (delta neutral)
+    3. Collect funding rate every 8 hours
+    4. Close position when funding goes negative
+
+    Returns:
+    - Total return and annualized return
+    - Funding received vs fees paid
+    - Max drawdown
+    - Sharpe ratio
+
+    Example:
+        python main.py funding-backtest --symbol BTCUSDT --initial-capital 10000
+    """
+    from trader.funding_rate import run_backtest
+
+    run_backtest(symbol=symbol, initial_capital=initial_capital)
+
+
+@app.command("funding-monitor")
+def funding_monitor() -> None:
+    """
+    Monitor real-time Funding Rate opportunities.
+
+    Shows top 15 symbols ranked by annualized return:
+    - Current funding rate
+    - Estimated annual return
+    - Next funding settlement time
+
+    Use this to find the best symbols for arbitrage entry.
+
+    Example:
+        python main.py funding-monitor
+    """
+    from trader.funding_rate import run_monitor
+
+    run_monitor()
+
+
+@app.command("matrix-backtest")
+def matrix_backtest(
+    symbol: str = typer.Option("BTCUSDT", help="Futures symbol"),
+    output_dir: str = typer.Option("data/matrix_results", help="Output directory"),
+) -> None:
+    """
+    Run comprehensive matrix backtest across strategies, leverages, and timeframes.
+
+    Tests ALL combinations of:
+    - Strategies: TrendFollow, Momentum, VolBreakout, MeanReversion
+    - Leverages: 1x, 2x, 3x, 5x, 7x, 10x
+    - Timeframes: 15m, 1h, 4h
+    - SL/TP ratios: 1:2, 1:3 combinations
+    - Max daily trades: 2, 3, 5
+
+    Goal: Find configurations achieving 30-50% annual return with manageable risk.
+
+    Output:
+    - matrix_results_*.csv: All results
+    - Analysis summary printed to console
+
+    Example:
+        python main.py matrix-backtest --symbol BTCUSDT
+
+    Note: This may take 10-30 minutes depending on data size.
+    """
+    from trader.matrix_backtest import run_matrix_backtest
+
+    run_matrix_backtest(symbol=symbol, output_dir=output_dir)
+
+
 def main() -> None:
     app()
 
