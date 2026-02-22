@@ -1,0 +1,65 @@
+# Microstructure Strategy Family Grid
+# Based on: VWAP, volume profile, order flow, volume-weighted momentum
+
+family: microstructure
+
+strategies:
+  vwap:
+    vwap_period: [12, 24, 48]
+    deviation_threshold: [0.005, 0.01, 0.015]
+    volume_mult: [1.0, 1.2, 1.5]
+
+  volume_profile:
+    profile_period: [30, 50, 100]
+    num_bins: [10, 20, 30]
+    poc_proximity: [0.003, 0.005, 0.01]
+
+  order_flow:
+    flow_period: [5, 10, 15]
+    imbalance_threshold: [0.5, 0.6, 0.7]
+    confirmation_period: [2, 3, 5]
+
+  volume_momentum:
+    momentum_period: [5, 10, 15]
+    volume_lookback: [10, 20, 30]
+    momentum_threshold: [0.003, 0.005, 0.01]
+    volume_mult: [1.2, 1.5, 2.0]
+
+# Risk management
+risk:
+  stop_loss_pct: [0.01, 0.015, 0.02]
+  take_profit_pct: [0.015, 0.02, 0.025, 0.03]
+
+# Trading costs
+costs:
+  profiles:
+    conservative:
+      slippage_bps: 5
+      fee_taker_bps: 6
+    base:
+      slippage_bps: 3
+      fee_taker_bps: 4
+    aggressive:
+      slippage_bps: 1
+      fee_taker_bps: 2
+
+# Position settings
+position:
+  leverage: [1, 2, 3]
+  allow_short: [true, false]
+
+# Symbols and timeframes
+symbols: [BTCUSDT, ETHUSDT]
+timeframes: [15m, 1h, 4h]
+
+# Price source for execution
+price_source: [next_open, close]
+
+# Filters for overfitting detection
+filters:
+  min_trades: 40
+  max_drawdown_pct: -30
+  min_profit_factor: 1.1
+  min_sharpe: 0.5
+  wfo_positive_ratio: 0.6
+  mc_percentile: 55

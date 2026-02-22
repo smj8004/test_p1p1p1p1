@@ -1,0 +1,65 @@
+# Carry Strategy Family Grid
+# Based on: Funding rate arbitrage, premium/discount, yield differential
+
+family: carry
+
+strategies:
+  funding_rate:
+    funding_threshold: [0.00005, 0.0001, 0.0002]
+    ema_period: [10, 20, 30]
+    lookback: [8, 16, 24]
+
+  premium:
+    premium_threshold: [0.003, 0.005, 0.01]
+    lookback: [12, 24, 48]
+    ema_period: [10, 20, 30]
+
+  yield:
+    yield_period: [12, 24, 48]
+    yield_threshold: [0.001, 0.002, 0.003]
+    momentum_period: [6, 12, 24]
+
+  momentum:
+    momentum_fast: [5, 10, 15]
+    momentum_slow: [20, 30, 50]
+    carry_period: [12, 24, 48]
+    carry_weight: [0.2, 0.3, 0.4]
+
+# Risk management
+risk:
+  stop_loss_pct: [0.01, 0.015, 0.02]
+  take_profit_pct: [0.015, 0.02, 0.03]
+
+# Trading costs
+costs:
+  profiles:
+    conservative:
+      slippage_bps: 5
+      fee_taker_bps: 6
+    base:
+      slippage_bps: 3
+      fee_taker_bps: 4
+    aggressive:
+      slippage_bps: 1
+      fee_taker_bps: 2
+
+# Position settings
+position:
+  leverage: [1, 2]
+  allow_short: [true, false]
+
+# Symbols and timeframes
+symbols: [BTCUSDT, ETHUSDT]
+timeframes: [1h, 4h]
+
+# Price source for execution
+price_source: [next_open, close]
+
+# Filters for overfitting detection
+filters:
+  min_trades: 30
+  max_drawdown_pct: -25
+  min_profit_factor: 1.2
+  min_sharpe: 0.6
+  wfo_positive_ratio: 0.6
+  mc_percentile: 55

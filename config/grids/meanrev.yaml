@@ -1,0 +1,68 @@
+# Mean Reversion Strategy Family Grid
+# Based on: Bollinger Bands, RSI, Z-score statistical arbitrage
+
+family: meanrev
+
+strategies:
+  bollinger:
+    bb_period: [15, 20, 25, 30]
+    bb_std: [1.5, 2.0, 2.5]
+    rsi_period: [7, 14, 21]
+    rsi_oversold: [20, 25, 30]
+    rsi_overbought: [70, 75, 80]
+
+  zscore:
+    lookback: [15, 20, 30, 50]
+    entry_zscore: [1.5, 2.0, 2.5]
+    exit_zscore: [0.0, 0.5, 1.0]
+
+  rsi:
+    rsi_fast: [5, 7, 9]
+    rsi_slow: [14, 21]
+    oversold: [25, 30, 35]
+    overbought: [65, 70, 75]
+
+  stoch_rsi:
+    rsi_period: [7, 14]
+    stoch_period: [14, 21]
+    oversold: [15, 20, 25]
+    overbought: [75, 80, 85]
+
+# Risk management
+risk:
+  stop_loss_pct: [0.01, 0.015, 0.02, 0.025]
+  take_profit_pct: [0.01, 0.015, 0.02, 0.025]
+
+# Trading costs
+costs:
+  profiles:
+    conservative:
+      slippage_bps: 5
+      fee_taker_bps: 6
+    base:
+      slippage_bps: 3
+      fee_taker_bps: 4
+    aggressive:
+      slippage_bps: 1
+      fee_taker_bps: 2
+
+# Position settings
+position:
+  leverage: [1, 2, 3]
+  allow_short: [true, false]
+
+# Symbols and timeframes
+symbols: [BTCUSDT, ETHUSDT]
+timeframes: [15m, 1h, 4h, 1d]
+
+# Price source for execution
+price_source: [next_open, close]
+
+# Filters for overfitting detection
+filters:
+  min_trades: 50
+  max_drawdown_pct: -30
+  min_profit_factor: 1.1
+  min_sharpe: 0.6
+  wfo_positive_ratio: 0.65
+  mc_percentile: 55

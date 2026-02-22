@@ -1,0 +1,66 @@
+# Breakout Strategy Family Grid
+# Based on: Volatility expansion, range breakouts, momentum confirmation
+
+family: breakout
+
+strategies:
+  volatility:
+    atr_period: [10, 14, 20]
+    atr_mult: [1.0, 1.5, 2.0]
+    lookback: [10, 20, 40]
+    vol_threshold: [1.0, 1.2, 1.5, 2.0]
+
+  range:
+    consolidation_period: [5, 10, 15, 20]
+    breakout_threshold: [0.3, 0.5, 0.75, 1.0]
+    atr_period: [10, 14, 20]
+
+  momentum:
+    lookback: [10, 20, 30]
+    momentum_period: [5, 10, 15]
+    momentum_threshold: [0.5, 1.0, 1.5]
+    volume_mult: [1.2, 1.5, 2.0]
+
+  atr_channel:
+    sma_period: [10, 20, 30]
+    atr_period: [10, 14, 20]
+    atr_mult: [1.5, 2.0, 2.5, 3.0]
+
+# Risk management
+risk:
+  stop_loss_pct: [0.015, 0.02, 0.025, 0.03]
+  take_profit_pct: [0.03, 0.04, 0.05, 0.06]
+
+# Trading costs
+costs:
+  profiles:
+    conservative:
+      slippage_bps: 5
+      fee_taker_bps: 6
+    base:
+      slippage_bps: 3
+      fee_taker_bps: 4
+    aggressive:
+      slippage_bps: 1
+      fee_taker_bps: 2
+
+# Position settings
+position:
+  leverage: [1, 2, 3, 5]
+  allow_short: [true, false]
+
+# Symbols and timeframes
+symbols: [BTCUSDT, ETHUSDT]
+timeframes: [15m, 1h, 4h]
+
+# Price source for execution
+price_source: [next_open, close]
+
+# Filters for overfitting detection
+filters:
+  min_trades: 25
+  max_drawdown_pct: -35
+  min_profit_factor: 1.2
+  min_sharpe: 0.5
+  wfo_positive_ratio: 0.55
+  mc_percentile: 55
