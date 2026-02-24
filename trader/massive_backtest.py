@@ -484,7 +484,13 @@ def run_single_backtest(
     if hasattr(df.index[0], 'date'):
         days = (df.index[-1] - df.index[0]).days
     else:
-        days = len(df) // 24  # Assume hourly if no datetime index
+        # Bars per day by timeframe
+        tf_bars_per_day = {
+            "1m": 1440, "5m": 288, "15m": 96, "30m": 48,
+            "1h": 24, "4h": 6, "1d": 1
+        }
+        bars_per_day = tf_bars_per_day.get(config.timeframe, 24)
+        days = len(df) // bars_per_day
 
     days = max(days, 1)
     annual_return = return_pct * 365 / days
@@ -497,12 +503,20 @@ def run_single_backtest(
     gross_loss = abs(sum(losses)) if losses else 1e-10
     profit_factor = gross_profit / gross_loss
 
-    # Sharpe ratio
+    # Sharpe ratio - scale by sqrt(periods_per_year)
+    # periods_per_year = 252 trading days * bars_per_day
+    tf_bars_per_day = {
+        "1m": 1440, "5m": 288, "15m": 96, "30m": 48,
+        "1h": 24, "4h": 6, "1d": 1
+    }
+    bars_per_day = tf_bars_per_day.get(config.timeframe, 24)
+    periods_per_year = 252 * bars_per_day
+
     if len(returns_list) > 1:
         returns_arr = np.array(returns_list)
-        sharpe = np.mean(returns_arr) / (np.std(returns_arr) + 1e-10) * np.sqrt(252 * 24)
+        sharpe = np.mean(returns_arr) / (np.std(returns_arr) + 1e-10) * np.sqrt(periods_per_year)
         neg_returns = returns_arr[returns_arr < 0]
-        sortino = np.mean(returns_arr) / (np.std(neg_returns) + 1e-10) * np.sqrt(252 * 24) if len(neg_returns) > 0 else 0
+        sortino = np.mean(returns_arr) / (np.std(neg_returns) + 1e-10) * np.sqrt(periods_per_year) if len(neg_returns) > 0 else 0
     else:
         sharpe = 0
         sortino = 0
@@ -915,8 +929,13 @@ def run_massive_backtest(
         filtered = backtester.apply_filters(results)
         logger.info(f"\nFiltered results: {len(filtered)} / {len(results)}")
 
-        # Generate report
-        backtester.generate_report(filtered)
+        # Generate report from ALL results (not just filtered)
+        # This ensures we always have data to analyze
+        backtester.generate_report(results, name="backtest_report")
+
+        # Also save filtered if any passed
+        if len(filtered) > 0:
+            backtester.generate_report(filtered, name="backtest_filtered")
 
     return results
 

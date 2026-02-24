@@ -54,7 +54,7 @@ position:
   allow_short: [true, false]
 
 # Symbols and timeframes
-symbols: [BTCUSDT, ETHUSDT]
+symbols: [BTCUSDT]
 timeframes: [1h, 4h, 1d]
 
 # Price source for execution
