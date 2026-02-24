@@ -15,7 +15,7 @@ from typing import Iterator
 import pandas as pd
 import requests
 
-from trader.logging import get_logger
+from trader.logger_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -350,7 +350,7 @@ def download_multiple_symbols(
     Returns:
         Dict of symbol -> DataFrame
     """
-    from trader.logging import setup_logging
+    from trader.logger_utils import setup_logging
     setup_logging(level="INFO")
 
     results = {}

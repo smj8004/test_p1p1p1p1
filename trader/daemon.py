@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import pandas as pd
 
-from trader.logging import get_logger, setup_logging
+from trader.logger_utils import get_logger, setup_logging
 
 logger = get_logger(__name__)
 

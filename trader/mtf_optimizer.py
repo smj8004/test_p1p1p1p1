@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from trader.logging import get_logger
+from trader.logger_utils import get_logger
 from trader.mtf_backtest import (
     MTFBacktestConfig,
     MTFBacktester,
@@ -607,7 +607,7 @@ def run_mtf_optimization(
     4. Test adaptive strategy
     5. Save results
     """
-    from trader.logging import setup_logging
+    from trader.logger_utils import setup_logging
     setup_logging(level="INFO")
 
     # Load data

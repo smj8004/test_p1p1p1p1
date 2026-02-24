@@ -17,7 +17,7 @@ from typing import Any, Literal
 import pandas as pd
 
 from trader.data.historical import HistoricalDataDownloader
-from trader.logging import get_logger, setup_logging
+from trader.logger_utils import get_logger, setup_logging
 from trader.multi_strategy_daemon import (
     MultiStrategyConfig,
     StrategyConfig,

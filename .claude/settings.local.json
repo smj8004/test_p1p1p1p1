@@ -5,7 +5,9 @@
       "Bash(python main.py:*)",
       "Bash(python -m pytest:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git mv:*)",
+      "Bash(find:*)"
     ]
   }
 }

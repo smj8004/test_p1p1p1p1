@@ -20,7 +20,7 @@ from trader.broker.paper import PaperBroker
 from trader.config import AppConfig
 from trader.data.binance import BinanceDataClient
 from trader.data.binance_live import BinanceLiveFeed
-from trader.logging import setup_logging
+from trader.logger_utils import setup_logging
 from trader.notify import Notifier
 from trader.optimize import (
     Optimizer,

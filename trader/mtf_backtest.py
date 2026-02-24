@@ -21,7 +21,7 @@ from typing import Protocol
 import numpy as np
 import pandas as pd
 
-from trader.logging import get_logger
+from trader.logger_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -1464,7 +1464,7 @@ def run_mtf_backtest(
     """
     Run MTF backtest with all strategies.
     """
-    from trader.logging import setup_logging
+    from trader.logger_utils import setup_logging
     setup_logging(level="INFO")
 
     # Load data - check both path formats

@@ -12,7 +12,7 @@ import pandas as pd
 import websockets
 
 from trader.data.binance import BinanceDataClient
-from trader.logging import get_logger
+from trader.logger_utils import get_logger
 
 logger = get_logger(__name__)
 

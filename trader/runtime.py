@@ -13,7 +13,7 @@ import pandas as pd
 
 from trader.broker.base import Broker, OrderRequest, OrderResult
 from trader.data.binance_live import BinanceLiveFeed, LiveBar
-from trader.logging import get_logger
+from trader.logger_utils import get_logger
 from trader.notify import Notifier
 from trader.risk.guards import RiskGuard
 from trader.storage import SQLiteStorage

@@ -20,7 +20,7 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from trader.logging import get_logger, setup_logging
+from trader.logger_utils import get_logger, setup_logging
 from trader.strategy.base import Bar, Strategy, StrategyPosition
 
 logger = get_logger(__name__)

@@ -26,7 +26,7 @@ from typing import Any, Iterator, Literal
 import pandas as pd
 import requests
 
-from trader.logging import get_logger, setup_logging
+from trader.logger_utils import get_logger, setup_logging
 
 logger = get_logger(__name__)
 

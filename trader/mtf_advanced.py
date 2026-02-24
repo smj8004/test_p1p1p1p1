@@ -20,7 +20,7 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 
-from trader.logging import get_logger
+from trader.logger_utils import get_logger
 from trader.mtf_backtest import (
     MTFBacktestConfig,
     MTFBacktester,
@@ -778,7 +778,7 @@ def run_ml_optimization(
     output_dir: str = "data/futures/ml_optimization",
 ) -> dict:
     """Run ML-based optimization for a strategy."""
-    from trader.logging import setup_logging
+    from trader.logger_utils import setup_logging
     setup_logging(level="INFO")
 
     # Load data
@@ -935,7 +935,7 @@ def run_walk_forward(
     output_dir: str = "data/futures/walk_forward",
 ) -> dict:
     """Run walk-forward validation."""
-    from trader.logging import setup_logging
+    from trader.logger_utils import setup_logging
     setup_logging(level="INFO")
 
     # Load data
