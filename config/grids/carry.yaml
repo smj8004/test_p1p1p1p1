@@ -1,34 +1,35 @@
-# Carry Strategy Family Grid
+# Carry Strategy Family Grid (OPTIMIZED)
+# Reduced from 69,984 → ~5,000 configs (14x reduction)
 # Based on: Funding rate arbitrage, premium/discount, yield differential
 
 family: carry
 
 strategies:
   funding_rate:
-    funding_threshold: [0.00005, 0.0001, 0.0002]
-    ema_period: [10, 20, 30]
-    lookback: [8, 16, 24]
+    funding_threshold: [0.0001, 0.0002]  # 3 → 2: moderate/high
+    ema_period: [20, 30]                 # 3 → 2: medium/long
+    lookback: [16, 24]                   # 3 → 2: medium/long
 
   premium:
-    premium_threshold: [0.003, 0.005, 0.01]
-    lookback: [12, 24, 48]
-    ema_period: [10, 20, 30]
+    premium_threshold: [0.005, 0.01]     # 3 → 2: moderate/high
+    lookback: [24, 48]                   # 3 → 2: medium/long
+    ema_period: [20, 30]                 # 3 → 2: medium/long
 
   yield:
-    yield_period: [12, 24, 48]
-    yield_threshold: [0.001, 0.002, 0.003]
-    momentum_period: [6, 12, 24]
+    yield_period: [24, 48]               # 3 → 2: medium/long
+    yield_threshold: [0.002, 0.003]      # 3 → 2: moderate/high
+    momentum_period: [12, 24]            # 3 → 2: medium/long
 
   momentum:
-    momentum_fast: [5, 10, 15]
-    momentum_slow: [20, 30, 50]
-    carry_period: [12, 24, 48]
-    carry_weight: [0.2, 0.3, 0.4]
+    momentum_fast: [10, 15]              # 3 → 2: fast/medium
+    momentum_slow: [30, 50]              # 3 → 2: medium/long
+    carry_period: [24, 48]               # 3 → 2: medium/long
+    carry_weight: [0.3, 0.4]             # 3 → 2: moderate/high
 
 # Risk management
 risk:
-  stop_loss_pct: [0.01, 0.015, 0.02]
-  take_profit_pct: [0.015, 0.02, 0.03]
+  stop_loss_pct: [0.01, 0.02]            # 3 → 2: tight for carry
+  take_profit_pct: [0.02, 0.03]          # 3 → 2: moderate targets
 
 # Trading costs
 costs:
@@ -39,18 +40,15 @@ costs:
     base:
       slippage_bps: 3
       fee_taker_bps: 4
-    aggressive:
-      slippage_bps: 1
-      fee_taker_bps: 2
 
 # Position settings
 position:
-  leverage: [1, 2]
+  leverage: [1, 2]                       # 2 → 2: keep both
   allow_short: [true, false]
 
 # Symbols and timeframes
 symbols: [BTCUSDT]
-timeframes: [1h, 4h]
+timeframes: [1h, 4h]                     # 2 → 2: keep both
 
 # Price source for execution
 price_source: [next_open, close]

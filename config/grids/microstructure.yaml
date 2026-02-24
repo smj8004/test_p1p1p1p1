@@ -1,34 +1,35 @@
-# Microstructure Strategy Family Grid
+# Microstructure Strategy Family Grid (OPTIMIZED)
+# Reduced from 209,952 → ~12,000 configs (17x reduction)
 # Based on: VWAP, volume profile, order flow, volume-weighted momentum
 
 family: microstructure
 
 strategies:
   vwap:
-    vwap_period: [12, 24, 48]
-    deviation_threshold: [0.005, 0.01, 0.015]
-    volume_mult: [1.0, 1.2, 1.5]
+    vwap_period: [24, 48]               # 3 → 2: intraday/daily
+    deviation_threshold: [0.01, 0.015]  # 3 → 2: moderate/wide
+    volume_mult: [1.2, 1.5]             # 3 → 2: moderate/high
 
   volume_profile:
-    profile_period: [30, 50, 100]
-    num_bins: [10, 20, 30]
-    poc_proximity: [0.003, 0.005, 0.01]
+    profile_period: [50, 100]           # 3 → 2: medium/long
+    num_bins: [20, 30]                  # 3 → 2: moderate/fine
+    poc_proximity: [0.005, 0.01]        # 3 → 2: tight/moderate
 
   order_flow:
-    flow_period: [5, 10, 15]
-    imbalance_threshold: [0.5, 0.6, 0.7]
-    confirmation_period: [2, 3, 5]
+    flow_period: [10, 15]               # 3 → 2: medium/long
+    imbalance_threshold: [0.6, 0.7]     # 3 → 2: moderate/strong
+    confirmation_period: [3, 5]         # 3 → 2: short/medium
 
   volume_momentum:
-    momentum_period: [5, 10, 15]
-    volume_lookback: [10, 20, 30]
-    momentum_threshold: [0.003, 0.005, 0.01]
-    volume_mult: [1.2, 1.5, 2.0]
+    momentum_period: [10, 15]           # 3 → 2: medium/long
+    volume_lookback: [20, 30]           # 3 → 2: medium/long
+    momentum_threshold: [0.005, 0.01]   # 3 → 2: moderate/strong
+    volume_mult: [1.5, 2.0]             # 3 → 2: moderate/high
 
 # Risk management
 risk:
-  stop_loss_pct: [0.01, 0.015, 0.02]
-  take_profit_pct: [0.015, 0.02, 0.025, 0.03]
+  stop_loss_pct: [0.015, 0.02]          # 3 → 2: tight for microstructure
+  take_profit_pct: [0.02, 0.025, 0.03]  # 4 → 3: keep range
 
 # Trading costs
 costs:
@@ -39,18 +40,15 @@ costs:
     base:
       slippage_bps: 3
       fee_taker_bps: 4
-    aggressive:
-      slippage_bps: 1
-      fee_taker_bps: 2
 
 # Position settings
 position:
-  leverage: [1, 2, 3]
+  leverage: [1, 2]                      # 3 → 2: conservative/moderate
   allow_short: [true, false]
 
 # Symbols and timeframes
 symbols: [BTCUSDT]
-timeframes: [15m, 1h, 4h]
+timeframes: [1h, 4h]                    # 3 → 2: remove 15m (less reliable for microstructure)
 
 # Price source for execution
 price_source: [next_open, close]

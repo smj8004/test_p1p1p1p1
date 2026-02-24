@@ -1,39 +1,40 @@
-# Volatility Regime Strategy Family Grid
+# Volatility Regime Strategy Family Grid (OPTIMIZED)
+# Reduced from 1,119,744 → ~32,000 configs (35x reduction)
 # Based on: VIX regime detection, volatility targeting, GARCH concepts
 
 family: volregime
 
 strategies:
   adaptive:
-    vol_short: [5, 10, 15]
-    vol_long: [30, 50, 100]
-    low_vol_mult: [0.6, 0.8]
-    high_vol_mult: [1.3, 1.5, 1.8]
-    extreme_vol_mult: [2.0, 2.5, 3.0]
-    ema_fast: [8, 12]
-    ema_slow: [20, 26]
+    vol_short: [10, 15]           # 3 → 2: medium/fast
+    vol_long: [50, 100]           # 3 → 2: medium/long
+    low_vol_mult: [0.8]           # 2 → 1: standard
+    high_vol_mult: [1.5]          # 3 → 1: standard
+    extreme_vol_mult: [2.5]       # 3 → 1: standard
+    ema_fast: [12]                # 2 → 1: standard
+    ema_slow: [26]                # 2 → 1: standard
 
   vix:
-    vix_period: [14, 21, 30]
-    vix_low: [10, 15, 20]
-    vix_high: [25, 30, 40]
-    ema_period: [10, 20, 30]
+    vix_period: [14, 30]          # 3 → 2: standard/long
+    vix_low: [15, 20]             # 3 → 2: low/moderate
+    vix_high: [30, 40]            # 3 → 2: high/extreme
+    ema_period: [20, 30]          # 3 → 2: medium/long
 
   target:
-    target_vol: [0.10, 0.15, 0.20, 0.25]
-    vol_lookback: [10, 20, 30]
-    ema_fast: [8, 10, 12]
-    ema_slow: [20, 30, 50]
+    target_vol: [0.15, 0.25]      # 4 → 2: moderate/high
+    vol_lookback: [20, 30]        # 3 → 2: medium/long
+    ema_fast: [10, 12]            # 3 → 2: fast/medium
+    ema_slow: [30, 50]            # 3 → 2: medium/long
 
   cluster:
-    vol_period: [10, 14, 20]
-    cluster_threshold: [1.2, 1.5, 2.0]
-    ema_period: [10, 20, 30]
+    vol_period: [14, 20]          # 3 → 2: standard/long
+    cluster_threshold: [1.5, 2.0] # 3 → 2: moderate/high
+    ema_period: [20, 30]          # 3 → 2: medium/long
 
 # Risk management
 risk:
-  stop_loss_pct: [0.015, 0.02, 0.025, 0.03]
-  take_profit_pct: [0.025, 0.04, 0.05]
+  stop_loss_pct: [0.015, 0.025, 0.03]   # 4 → 3
+  take_profit_pct: [0.025, 0.04, 0.05]  # 3 → 3: keep all
 
 # Trading costs
 costs:
@@ -44,18 +45,15 @@ costs:
     base:
       slippage_bps: 3
       fee_taker_bps: 4
-    aggressive:
-      slippage_bps: 1
-      fee_taker_bps: 2
 
 # Position settings
 position:
-  leverage: [1, 2, 3]
+  leverage: [1, 2]                # 3 → 2: conservative/moderate
   allow_short: [true, false]
 
 # Symbols and timeframes
 symbols: [BTCUSDT]
-timeframes: [1h, 4h, 1d]
+timeframes: [1h, 4h, 1d]          # 3 → 3: keep all (regime needs multiple TFs)
 
 # Price source for execution
 price_source: [next_open, close]

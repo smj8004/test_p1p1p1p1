@@ -207,11 +207,71 @@ class GridConfigLoader:
         if not path.exists():
             raise FileNotFoundError(f"Grid config not found: {path}")
 
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             return yaml.safe_load(f)
 
-    def expand_grid(self, grid: dict) -> list[BacktestConfig]:
-        """Expand grid into all combinations"""
+    def _passes_constraints(self, config: BacktestConfig, cost_profiles_map: dict) -> bool:
+        """Check if config passes constraint filters"""
+
+        # A1: SL/TP ratio constraints
+        tp_sl_ratio = config.take_profit_pct / config.stop_loss_pct
+        if tp_sl_ratio < 1.2:  # TP too close to SL
+            return False
+        if tp_sl_ratio > 4.0:  # TP unrealistically far from SL
+            return False
+
+        # A2: Minimum profit after fees
+        cost_profile = cost_profiles_map.get(config.cost_profile, {"slippage_bps": 3, "fee_taker_bps": 4})
+        total_cost_pct = (cost_profile["slippage_bps"] + cost_profile["fee_taker_bps"]) / 10000 * 2  # Round trip
+        if config.take_profit_pct < total_cost_pct * 3:  # TP must be at least 3x total cost
+            return False
+
+        # A3: Leverage constraints
+        if not config.allow_short and config.leverage > 3:  # Long-only with high leverage = risky
+            return False
+
+        # A4: Strategy-specific parameter constraints
+        params = config.params
+
+        # EMA/Period constraints (trend strategies)
+        if "fast" in params and "slow" in params:
+            if params["fast"] >= params["slow"]:  # Fast must be < slow
+                return False
+            if params["slow"] / params["fast"] < 2.0:  # Minimum gap
+                return False
+
+        if "fast" in params and "trend" in params:
+            if params["fast"] >= params["trend"]:  # Fast < trend
+                return False
+
+        if "slow" in params and "trend" in params:
+            if params["slow"] >= params["trend"]:  # Slow < trend
+                return False
+
+        # Period ratio constraints
+        if "entry_period" in params and "exit_period" in params:
+            if params["exit_period"] >= params["entry_period"]:  # Exit should be faster
+                return False
+
+        # Z-score constraints
+        if "entry_zscore" in params and "exit_zscore" in params:
+            if params["exit_zscore"] >= params["entry_zscore"]:  # Exit before entry
+                return False
+
+        # Momentum period constraints
+        if "momentum_fast" in params and "momentum_slow" in params:
+            if params["momentum_fast"] >= params["momentum_slow"]:
+                return False
+
+        # RSI constraints
+        if "rsi_fast" in params and "rsi_slow" in params:
+            if params["rsi_fast"] >= params["rsi_slow"]:
+                return False
+
+        return True
+
+    def expand_grid(self, grid: dict, apply_constraints: bool = True) -> list[BacktestConfig]:
+        """Expand grid into all combinations with optional constraint filtering"""
         configs = []
         family = grid["family"]
         strategies = grid.get("strategies", {})
@@ -221,9 +281,16 @@ class GridConfigLoader:
         timeframes = grid.get("timeframes", ["1h"])
         price_sources = grid.get("price_source", ["next_open"])
 
-        cost_profiles = list(grid.get("costs", {}).get("profiles", {}).keys())
-        if not cost_profiles:
-            cost_profiles = ["base"]
+        cost_profiles_list = list(grid.get("costs", {}).get("profiles", {}).keys())
+        if not cost_profiles_list:
+            cost_profiles_list = ["base"]
+
+        # Build cost profile map for constraint checking
+        cost_profiles_map = grid.get("costs", {}).get("profiles", {})
+        if not cost_profiles_map:
+            cost_profiles_map = {"base": {"slippage_bps": 3, "fee_taker_bps": 4}}
+
+        rejected_count = 0
 
         for strategy_type, param_grid in strategies.items():
             # Generate all parameter combinations
@@ -239,7 +306,7 @@ class GridConfigLoader:
                             for allow_short in position.get("allow_short", [True]):
                                 for sl in risk.get("stop_loss_pct", [0.02]):
                                     for tp in risk.get("take_profit_pct", [0.04]):
-                                        for cost_profile in cost_profiles:
+                                        for cost_profile in cost_profiles_list:
                                             for price_source in price_sources:
                                                 config = BacktestConfig(
                                                     config_id="",
@@ -255,8 +322,18 @@ class GridConfigLoader:
                                                     cost_profile=cost_profile,
                                                     price_source=price_source,
                                                 )
+
+                                                # Apply constraint filtering
+                                                if apply_constraints:
+                                                    if not self._passes_constraints(config, cost_profiles_map):
+                                                        rejected_count += 1
+                                                        continue
+
                                                 config.config_id = generate_config_id(config)
                                                 configs.append(config)
+
+        if apply_constraints and rejected_count > 0:
+            logger.info(f"  Constraint filtering: kept {len(configs):,} / rejected {rejected_count:,} configs")
 
         return configs
 

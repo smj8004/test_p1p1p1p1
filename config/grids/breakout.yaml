@@ -1,35 +1,36 @@
-# Breakout Strategy Family Grid
+# Breakout Strategy Family Grid (OPTIMIZED)
+# Reduced from 628,992 → ~24,000 configs (26x reduction)
 # Based on: Volatility expansion, range breakouts, momentum confirmation
 
 family: breakout
 
 strategies:
   volatility:
-    atr_period: [10, 14, 20]
-    atr_mult: [1.0, 1.5, 2.0]
-    lookback: [10, 20, 40]
-    vol_threshold: [1.0, 1.2, 1.5, 2.0]
+    atr_period: [10, 20]          # 3 → 2: standard/long
+    atr_mult: [1.5, 2.0]          # 3 → 2: moderate/strong
+    lookback: [20, 40]            # 3 → 2: medium/long
+    vol_threshold: [1.2, 2.0]     # 4 → 2: moderate/extreme
 
   range:
-    consolidation_period: [5, 10, 15, 20]
-    breakout_threshold: [0.3, 0.5, 0.75, 1.0]
-    atr_period: [10, 14, 20]
+    consolidation_period: [10, 20] # 4 → 2: medium/long
+    breakout_threshold: [0.5, 1.0] # 4 → 2: moderate/strong
+    atr_period: [14, 20]           # 3 → 2: standard/long
 
   momentum:
-    lookback: [10, 20, 30]
-    momentum_period: [5, 10, 15]
-    momentum_threshold: [0.5, 1.0, 1.5]
-    volume_mult: [1.2, 1.5, 2.0]
+    lookback: [20, 30]             # 3 → 2: medium/long
+    momentum_period: [10, 15]      # 3 → 2: medium/long
+    momentum_threshold: [1.0, 1.5] # 3 → 2: moderate/strong
+    volume_mult: [1.5, 2.0]        # 3 → 2: moderate/high
 
   atr_channel:
-    sma_period: [10, 20, 30]
-    atr_period: [10, 14, 20]
-    atr_mult: [1.5, 2.0, 2.5, 3.0]
+    sma_period: [20, 30]           # 3 → 2: medium/long
+    atr_period: [14, 20]           # 3 → 2: standard/long
+    atr_mult: [2.0, 3.0]           # 4 → 2: moderate/wide
 
 # Risk management
 risk:
-  stop_loss_pct: [0.015, 0.02, 0.025, 0.03]
-  take_profit_pct: [0.03, 0.04, 0.05, 0.06]
+  stop_loss_pct: [0.02, 0.025, 0.03]   # 4 → 3: wider for breakouts
+  take_profit_pct: [0.04, 0.05, 0.06]  # 4 → 3: larger targets
 
 # Trading costs
 costs:
@@ -40,18 +41,15 @@ costs:
     base:
       slippage_bps: 3
       fee_taker_bps: 4
-    aggressive:
-      slippage_bps: 1
-      fee_taker_bps: 2
 
 # Position settings
 position:
-  leverage: [1, 2, 3, 5]
+  leverage: [1, 3]                # 4 → 2: conservative/aggressive
   allow_short: [true, false]
 
 # Symbols and timeframes
 symbols: [BTCUSDT]
-timeframes: [15m, 1h, 4h]
+timeframes: [1h, 4h]              # 3 → 2: intraday/swing
 
 # Price source for execution
 price_source: [next_open, close]
