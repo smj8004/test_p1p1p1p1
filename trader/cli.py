@@ -1735,6 +1735,250 @@ def matrix_backtest(
     run_matrix_backtest(symbol=symbol, output_dir=output_dir)
 
 
+@app.command("experiment-cost")
+def experiment_cost(
+    strategy: str = typer.Option("ema_cross", help="Strategy name"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    timeframe: str = typer.Option("1h", help="Timeframe"),
+    start: str = typer.Option("2024-01-01", help="Start date YYYY-MM-DD"),
+    end: str = typer.Option("2024-06-01", help="End date YYYY-MM-DD"),
+    fee_multipliers: str = typer.Option("1.0,2.0,3.0", help="Comma-separated fee multipliers"),
+    slippage_mode: str = typer.Option("both", help="Slippage mode: fixed, atr, both"),
+    latency_bars: str = typer.Option("0,1,2", help="Comma-separated latency delays in bars"),
+    seed: int = typer.Option(42, help="Random seed"),
+    output_dir: str = typer.Option("out/experiments/cost", help="Output directory"),
+) -> None:
+    """
+    Run Cost Stress Test experiment.
+
+    Tests strategy robustness under varying execution costs:
+    - Fee multipliers (e.g., 1x, 2x, 3x base fees)
+    - Slippage (fixed BPS or ATR-based)
+    - Latency (execution delay in bars)
+
+    Example:
+        python main.py experiment-cost --strategy ema_cross --symbol BTC/USDT \\
+            --timeframe 1h --start 2024-01-01 --end 2024-06-01 \\
+            --fee-multipliers "1.0,2.0,3.0" --slippage-mode both
+    """
+    from datetime import datetime
+    from uuid import uuid4
+
+    from trader.data.binance import BinanceDataClient
+    from trader.experiments import CostStressExperiment, ExperimentConfig, ExperimentType
+    from trader.experiments.report import ExperimentReporter
+
+    cfg = AppConfig()
+
+    # Parse parameters
+    fee_mults = [float(x.strip()) for x in fee_multipliers.split(",")]
+    latency_list = [int(x.strip()) for x in latency_bars.split(",")]
+
+    # Fetch data
+    console.print(f"Fetching data for {symbol} {timeframe} from {start} to {end}...")
+    client = BinanceDataClient(testnet=_is_testnet(cfg))
+    try:
+        df = client.fetch_ohlcv_range(symbol=symbol, timeframe=timeframe, start=start, end=end)
+    finally:
+        client.close()
+
+    console.print(f"Loaded {len(df)} candles")
+
+    # Build experiment config
+    experiment_id = f"cost_{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    exp_config = ExperimentConfig(
+        experiment_type=ExperimentType.COST_STRESS,
+        experiment_id=experiment_id,
+        strategy_name=strategy,
+        strategy_params={"short_window": 12, "long_window": 26, "allow_short": True},  # Default params
+        symbol=symbol,
+        timeframe=timeframe,
+        start_date=start,
+        end_date=end,
+        seed=seed,
+        type_specific={
+            "fee_multipliers": fee_mults,
+            "slippage_modes": [slippage_mode],
+            "latency_bars": latency_list,
+        },
+    )
+
+    # Run experiment
+    experiment = CostStressExperiment(exp_config, df)
+    result = experiment.run()
+
+    # Generate report
+    output_path = Path(output_dir) / experiment_id
+    reporter = ExperimentReporter(output_path)
+    reporter.generate_report(result)
+
+    console.print(f"\n[bold green]Experiment complete![/bold green]")
+    console.print(f"Report saved to: {output_path}")
+
+
+@app.command("experiment-wfo")
+def experiment_wfo(
+    strategy: str = typer.Option("ema_cross", help="Strategy name"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    timeframe: str = typer.Option("1h", help="Timeframe"),
+    start: str = typer.Option("2023-01-01", help="Start date YYYY-MM-DD"),
+    end: str = typer.Option("2024-06-01", help="End date YYYY-MM-DD"),
+    train_days: int = typer.Option(180, help="Training window in days"),
+    test_days: int = typer.Option(60, help="Test window in days"),
+    n_splits: int = typer.Option(5, help="Number of walk-forward splits"),
+    param_grid: str | None = typer.Option(None, help="Path to YAML parameter grid"),
+    top_k: int = typer.Option(5, help="Top K candidates to evaluate on test"),
+    seed: int = typer.Option(42, help="Random seed"),
+    output_dir: str = typer.Option("out/experiments/wfo", help="Output directory"),
+) -> None:
+    """
+    Run Walk-Forward Validation experiment.
+
+    Tests strategy robustness through time-based cross-validation:
+    - Splits data into train/test windows
+    - Optimizes parameters on train data
+    - Validates on out-of-sample test data
+    - Measures parameter stability
+
+    Example:
+        python main.py experiment-wfo --strategy ema_cross --symbol BTC/USDT \\
+            --timeframe 1h --start 2023-01-01 --end 2024-06-01 \\
+            --train-days 180 --test-days 60 --n-splits 5
+    """
+    from datetime import datetime
+
+    from trader.data.binance import BinanceDataClient
+    from trader.experiments import ExperimentConfig, ExperimentType, WalkForwardExperiment
+    from trader.experiments.report import ExperimentReporter
+
+    cfg = AppConfig()
+
+    # Fetch data
+    console.print(f"Fetching data for {symbol} {timeframe} from {start} to {end}...")
+    client = BinanceDataClient(testnet=_is_testnet(cfg))
+    try:
+        df = client.fetch_ohlcv_range(symbol=symbol, timeframe=timeframe, start=start, end=end)
+    finally:
+        client.close()
+
+    console.print(f"Loaded {len(df)} candles")
+
+    # Load param grid if provided
+    grid = None
+    if param_grid:
+        grid_data = load_grid_yaml(param_grid)
+        grid = grid_data.get(strategy, {})
+
+    # Build experiment config
+    experiment_id = f"wfo_{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    exp_config = ExperimentConfig(
+        experiment_type=ExperimentType.WALK_FORWARD,
+        experiment_id=experiment_id,
+        strategy_name=strategy,
+        strategy_params={"short_window": 12, "long_window": 26, "allow_short": True},
+        symbol=symbol,
+        timeframe=timeframe,
+        start_date=start,
+        end_date=end,
+        seed=seed,
+        type_specific={
+            "train_days": train_days,
+            "test_days": test_days,
+            "n_splits": n_splits,
+            "top_k": top_k,
+        },
+    )
+
+    # Run experiment
+    experiment = WalkForwardExperiment(exp_config, df, param_grid=grid)
+    result = experiment.run()
+
+    # Generate report
+    output_path = Path(output_dir) / experiment_id
+    reporter = ExperimentReporter(output_path)
+    reporter.generate_report(result)
+
+    console.print(f"\n[bold green]Experiment complete![/bold green]")
+    console.print(f"Report saved to: {output_path}")
+
+
+@app.command("experiment-regime")
+def experiment_regime(
+    strategy: str = typer.Option("ema_cross", help="Strategy name"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    timeframe: str = typer.Option("1h", help="Timeframe"),
+    start: str = typer.Option("2024-01-01", help="Start date YYYY-MM-DD"),
+    end: str = typer.Option("2024-06-01", help="End date YYYY-MM-DD"),
+    regime_mode: str = typer.Option("both", help="Regime mode: trend, vol, both"),
+    gating_mode: str = typer.Option("on_off", help="Gating mode: on_off, sizing"),
+    seed: int = typer.Option(42, help="Random seed"),
+    output_dir: str = typer.Option("out/experiments/regime", help="Output directory"),
+) -> None:
+    """
+    Run Regime Gating experiment.
+
+    Tests strategy performance across market regimes:
+    - Trend regimes: UPTREND, DOWNTREND, SIDEWAYS
+    - Volatility regimes: HIGH_VOL, LOW_VOL
+    - Gating modes: on_off (trade filtering), sizing (position scaling)
+
+    Example:
+        python main.py experiment-regime --strategy ema_cross --symbol BTC/USDT \\
+            --timeframe 1h --start 2024-01-01 --end 2024-06-01 \\
+            --regime-mode both --gating-mode on_off
+    """
+    from datetime import datetime
+
+    from trader.data.binance import BinanceDataClient
+    from trader.experiments import ExperimentConfig, ExperimentType, RegimeGateExperiment
+    from trader.experiments.report import ExperimentReporter
+
+    cfg = AppConfig()
+
+    # Fetch data
+    console.print(f"Fetching data for {symbol} {timeframe} from {start} to {end}...")
+    client = BinanceDataClient(testnet=_is_testnet(cfg))
+    try:
+        df = client.fetch_ohlcv_range(symbol=symbol, timeframe=timeframe, start=start, end=end)
+    finally:
+        client.close()
+
+    console.print(f"Loaded {len(df)} candles")
+
+    # Build experiment config
+    experiment_id = f"regime_{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    exp_config = ExperimentConfig(
+        experiment_type=ExperimentType.REGIME_GATE,
+        experiment_id=experiment_id,
+        strategy_name=strategy,
+        strategy_params={"short_window": 12, "long_window": 26, "allow_short": True},
+        symbol=symbol,
+        timeframe=timeframe,
+        start_date=start,
+        end_date=end,
+        seed=seed,
+        type_specific={
+            "regime_mode": regime_mode,
+            "gating_mode": gating_mode,
+        },
+    )
+
+    # Run experiment
+    experiment = RegimeGateExperiment(exp_config, df)
+    result = experiment.run()
+
+    # Generate report
+    output_path = Path(output_dir) / experiment_id
+    reporter = ExperimentReporter(output_path)
+    reporter.generate_report(result)
+
+    console.print(f"\n[bold green]Experiment complete![/bold green]")
+    console.print(f"Report saved to: {output_path}")
+
+
 def main() -> None:
     app()
 
