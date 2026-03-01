@@ -1,0 +1,252 @@
+[
+  {
+    "rank": 1,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 3,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "base",
+    "performance": {
+      "sharpe_ratio": 1.2940469963873524,
+      "annual_return_pct": 111.73255322090131,
+      "max_drawdown_pct": -11.106031200708255,
+      "profit_factor": 7.965793901680145,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 2,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 3,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "base",
+    "performance": {
+      "sharpe_ratio": 1.294042954911157,
+      "annual_return_pct": 111.73223908838499,
+      "max_drawdown_pct": -11.106887870217594,
+      "profit_factor": 7.965796916390317,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 3,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 1,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "base",
+    "performance": {
+      "sharpe_ratio": 1.2806556772810744,
+      "annual_return_pct": 23.299301412413577,
+      "max_drawdown_pct": -3.9598952869564967,
+      "profit_factor": 7.8385508499314325,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 4,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 1,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "base",
+    "performance": {
+      "sharpe_ratio": 1.2806514313624748,
+      "annual_return_pct": 23.29925793486839,
+      "max_drawdown_pct": -3.960200735544849,
+      "profit_factor": 7.838369453349009,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 5,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 3,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "conservative",
+    "performance": {
+      "sharpe_ratio": 1.270475498758375,
+      "annual_return_pct": 107.15646187151614,
+      "max_drawdown_pct": -11.217990015556829,
+      "profit_factor": 7.644702028526175,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 6,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 3,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "conservative",
+    "performance": {
+      "sharpe_ratio": 1.2704714991147343,
+      "annual_return_pct": 107.15615711013368,
+      "max_drawdown_pct": -11.218847069268383,
+      "profit_factor": 7.6447019688701205,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 7,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 3,
+    "allow_short": false,
+    "stop_loss_pct": 0.01,
+    "take_profit_pct": 0.04,
+    "cost_profile": "base",
+    "performance": {
+      "sharpe_ratio": 1.2589000753360642,
+      "annual_return_pct": 100.31596271418277,
+      "max_drawdown_pct": -11.106031200708255,
+      "profit_factor": 7.3964742101227445,
+      "win_rate": 66.66666666666666,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 8,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 3,
+    "allow_short": false,
+    "stop_loss_pct": 0.01,
+    "take_profit_pct": 0.04,
+    "cost_profile": "base",
+    "performance": {
+      "sharpe_ratio": 1.2588857804019928,
+      "annual_return_pct": 100.3140144262652,
+      "max_drawdown_pct": -11.106887870217594,
+      "profit_factor": 7.395818025191306,
+      "win_rate": 66.66666666666666,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 9,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 1,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "conservative",
+    "performance": {
+      "sharpe_ratio": 1.2566243608348373,
+      "annual_return_pct": 22.661404070430255,
+      "max_drawdown_pct": -3.997116100687191,
+      "profit_factor": 7.543691670491197,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  },
+  {
+    "rank": 10,
+    "family": "trend",
+    "strategy_type": "keltner",
+    "params": {
+      "ema_period": 10,
+      "atr_period": 20,
+      "atr_mult": 2.0
+    },
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "leverage": 1,
+    "allow_short": false,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.04,
+    "cost_profile": "conservative",
+    "performance": {
+      "sharpe_ratio": 1.256620145080718,
+      "annual_return_pct": 22.661361076329058,
+      "max_drawdown_pct": -3.9974214800987244,
+      "profit_factor": 7.5435212372656455,
+      "win_rate": 73.33333333333333,
+      "total_trades": 15
+    }
+  }
+]

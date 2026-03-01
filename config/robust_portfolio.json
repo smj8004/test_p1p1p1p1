@@ -1,0 +1,178 @@
+{
+  "portfolio_name": "Robust Multi-Strategy Portfolio",
+  "description": "Diversified portfolio combining multiple uncorrelated strategies for consistent returns",
+  "created_at": "2026-02-25",
+  "risk_philosophy": "Capital preservation first, growth second",
+
+  "portfolio_rules": {
+    "total_capital_allocation": 1.0,
+    "max_single_strategy_allocation": 0.25,
+    "max_correlation_allowed": 0.6,
+    "rebalance_frequency": "weekly",
+    "max_total_drawdown": 0.15,
+    "stop_all_trading_drawdown": 0.20
+  },
+
+  "strategies": [
+    {
+      "name": "volregime_target",
+      "allocation": 0.25,
+      "description": "Volatility regime targeting - adjusts position size based on market volatility",
+      "family": "volregime",
+      "type": "target",
+      "symbol": "BTCUSDT",
+      "timeframe": "1d",
+      "parameters": {
+        "target_vol": 0.15,
+        "vol_lookback": 20,
+        "ema_fast": 10,
+        "ema_slow": 30
+      },
+      "risk_management": {
+        "stop_loss_pct": 0.015,
+        "take_profit_pct": 0.04,
+        "leverage": 1,
+        "allow_short": false
+      },
+      "expected_performance": {
+        "sharpe_ratio": 1.07,
+        "annual_return_pct": 56.0,
+        "max_drawdown_pct": -22.0,
+        "total_trades_3yr": 124,
+        "win_rate": 49.2
+      },
+      "rationale": "High trade count provides statistical significance. Adapts to market conditions."
+    },
+    {
+      "name": "breakout_atr_channel",
+      "allocation": 0.25,
+      "description": "ATR-based breakout detection for trend following",
+      "family": "breakout",
+      "type": "atr_channel",
+      "symbol": "BTCUSDT",
+      "timeframe": "1h",
+      "parameters": {
+        "sma_period": 20,
+        "atr_period": 20,
+        "atr_mult": 3.0
+      },
+      "risk_management": {
+        "stop_loss_pct": 0.02,
+        "take_profit_pct": 0.04,
+        "leverage": 1,
+        "allow_short": false
+      },
+      "expected_performance": {
+        "sharpe_ratio": 0.97,
+        "annual_return_pct": 23.1,
+        "max_drawdown_pct": -15.2,
+        "total_trades_3yr": 196,
+        "win_rate": 42.9
+      },
+      "rationale": "Highest trade count. Lower win rate but larger winners than losers."
+    },
+    {
+      "name": "meanrev_bollinger",
+      "allocation": 0.20,
+      "description": "Mean reversion using Bollinger Bands with RSI confirmation",
+      "family": "meanrev",
+      "type": "bollinger",
+      "symbol": "BTCUSDT",
+      "timeframe": "4h",
+      "parameters": {
+        "bb_period": 30,
+        "bb_std": 2.5,
+        "rsi_period": 21,
+        "rsi_oversold": 30,
+        "rsi_overbought": 70
+      },
+      "risk_management": {
+        "stop_loss_pct": 0.02,
+        "take_profit_pct": 0.025,
+        "leverage": 1,
+        "allow_short": false
+      },
+      "expected_performance": {
+        "sharpe_ratio": 1.01,
+        "annual_return_pct": 44.7,
+        "max_drawdown_pct": -19.4,
+        "total_trades_3yr": 54,
+        "win_rate": 61.1
+      },
+      "rationale": "Counter-trend strategy uncorrelated with breakout strategies."
+    },
+    {
+      "name": "volregime_adaptive",
+      "allocation": 0.20,
+      "description": "Adaptive volatility multiplier based on market regime",
+      "family": "volregime",
+      "type": "adaptive",
+      "symbol": "BTCUSDT",
+      "timeframe": "1d",
+      "parameters": {
+        "vol_short": 10,
+        "vol_long": 50,
+        "low_vol_mult": 0.8,
+        "high_vol_mult": 1.5,
+        "extreme_vol_mult": 2.5,
+        "ema_fast": 12,
+        "ema_slow": 26
+      },
+      "risk_management": {
+        "stop_loss_pct": 0.025,
+        "take_profit_pct": 0.04,
+        "leverage": 1,
+        "allow_short": true
+      },
+      "expected_performance": {
+        "sharpe_ratio": 1.05,
+        "annual_return_pct": 24.6,
+        "max_drawdown_pct": -11.4,
+        "total_trades_3yr": 30,
+        "win_rate": 63.3
+      },
+      "rationale": "Lower drawdown. Can profit from both directions."
+    },
+    {
+      "name": "cash_reserve",
+      "allocation": 0.10,
+      "description": "Emergency reserve - never traded",
+      "type": "cash",
+      "rationale": "Dry powder for opportunities or emergency withdrawal"
+    }
+  ],
+
+  "portfolio_expected_performance": {
+    "estimated_annual_return": "25-40%",
+    "estimated_max_drawdown": "-12% to -18%",
+    "estimated_sharpe": "0.9-1.1",
+    "note": "Diversification reduces individual strategy risks"
+  },
+
+  "execution_rules": {
+    "entry_rules": [
+      "Only enter when strategy signal aligns with portfolio risk budget",
+      "Never add to losing positions",
+      "Wait for confirmation candle close before entry"
+    ],
+    "exit_rules": [
+      "Exit immediately on stop loss hit",
+      "Trail stop to breakeven after 50% of target reached",
+      "Close all positions if portfolio drawdown exceeds 15%"
+    ],
+    "position_sizing": [
+      "Base position = (allocation * capital * 0.02) / stop_distance",
+      "Reduce by 50% if portfolio already has >2 open positions",
+      "Skip trade if position size < minimum exchange lot"
+    ]
+  },
+
+  "important_warnings": [
+    "PAST PERFORMANCE DOES NOT GUARANTEE FUTURE RESULTS",
+    "Backtest results are optimistic - expect 30-50% worse in live trading",
+    "Start with paper trading for minimum 3 months",
+    "Never trade with money you cannot afford to lose",
+    "Market conditions change - strategies may stop working",
+    "Transaction costs and slippage will reduce returns"
+  ]
+}
